@@ -1,0 +1,12 @@
+# Compiled binary
+Screenpipe Manager
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Logs
+*.log

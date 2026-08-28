@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Screenpipe Manager</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --blue: #58a6ff;
+    --accent: #a371f7;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo { font-size: 20px; font-weight: 700; }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .status-badge.running { background: rgba(63,185,80,0.15); color: var(--green); }
+  .status-badge.stopped { background: rgba(248,81,73,0.15); color: var(--red); }
+  .status-badge.loading { background: rgba(139,148,158,0.15); color: var(--text-dim); }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .status-badge.running .status-dot { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* Toggle button */
+  .toggle-btn {
+    padding: 8px 24px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .toggle-btn.start { background: var(--green); color: #fff; }
+  .toggle-btn.stop { background: var(--red); color: #fff; }
+  .toggle-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Stats grid */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+  }
+  .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .stat-value.small { font-size: 14px; }
+
+  /* Search */
+  .search-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .search-bar input {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  .search-bar input:focus { border-color: var(--blue); }
+  .search-bar button {
+    padding: 10px 20px;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .search-bar button:hover { opacity: 0.85; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .tab {
+    padding: 6px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-dim);
+    border-bottom: none;
+  }
+  .tab.active { background: var(--surface2); color: var(--text); border-color: var(--blue); }
+
+  /* Results */
+  .results { display: flex; flex-direction: column; gap: 8px; }
+  .result-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex;
+    gap: 12px;
+  }
+  .result-thumb {
+    width: 80px; height: 60px;
+    border-radius: 4px;
+    background: var(--surface2);
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .result-body { flex: 1; min-width: 0; }
+  .result-meta {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .result-type {
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+  .result-type.OCR { background: rgba(88,166,255,0.15); color: var(--blue); }
+  .result-type.audio { background: rgba(163,113,247,0.15); color: var(--accent); }
+  .result-text {
+    font-size: 13px;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 100px;
+    overflow: hidden;
+    position: relative;
+  }
+  .result-text.expanded { max-height: none; }
+  .result-text::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 20px;
+    background: linear-gradient(transparent, var(--surface));
+  }
+  .result-text.expanded::after { display: none; }
+
+  /* Meeting banner */
+  .meeting-banner {
+    background: rgba(210,153,34,0.1);
+    border: 1px solid var(--yellow);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .meeting-banner.hidden { display: none; }
+  .meeting-icon { font-size: 18px; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px; color: var(--text-dim); }
+  .spinner {
+    display: inline-block;
+    width: 24px; height: 24px;
+    border: 3px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 40px; color: var(--text-dim); }
+  .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-dim); text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-left">
+      <div class="logo">Screenpipe Manager</div>
+      <div id="statusBadge" class="status-badge loading">
+        <span class="status-dot"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+    </div>
+    <button id="toggleBtn" class="toggle-btn start" disabled>Start</button>
+  </header>
+
+  <!-- Meeting banner -->
+  <div id="meetingBanner" class="meeting-banner hidden">
+    <span class="meeting-icon">📹</span>
+    <span id="meetingText"></span>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats">
+    <div class="stat-card"><div class="stat-label">Frames Captured</div><div class="stat-value" id="statFrames">-</div></div>
+    <div class="stat-card"><div class="stat-label">Audio RMS</div><div class="stat-value" id="statRms">-</div></div>
+    <div class="stat-card"><div class="stat-label">Transcriptions</div><div class="stat-value" id="statTrans">-</div></div>
+    <div class="stat-card"><div class="stat-label">FPS</div><div class="stat-value" id="statFps">-</div></div>
+    <div class="stat-card"><div class="stat-label">Monitors</div><div class="stat-value small" id="statMon">-</div></div>
+    <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-value small" id="statUptime">-</div></div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <input id="searchInput" type="text" placeholder="Search screen recordings and audio..." />
+    <button id="searchBtn">Search</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-type="all" onclick="setTab('all')">All</div>
+    <div class="tab" data-type="vision" onclick="setTab('vision')">Vision / OCR</div>
+    <div class="tab" data-type="audio" onclick="setTab('audio')">Audio</div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="results">
+    <div class="empty">Start screenpipe to see recordings, or search past data.</div>
+  </div>
+
+  <div class="footer">
+    Screenpipe Manager - local only, no external services. Data from localhost:3030.
+  </div>
+</div>
+
+<script>
+let currentTab = 'all';
+let pollTimer = null;
+
+// --- API helpers ---
+async function api(path) {
+  const resp = await fetch(path);
+  return resp.json();
+}
+async function proxyApi(path, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const url = `/api/proxy${path}${qs ? '?' + qs : ''}`;
+  const resp = await fetch(url);
+  return resp.json();
+}
+
+// --- Status ---
+async function refreshStatus() {
+  try {
+    const data = await api('/api/status');
+    const badge = document.getElementById('statusBadge');
+    const text = document.getElementById('statusText');
+    const btn = document.getElementById('toggleBtn');
+
+    if (data.running) {
+      badge.className = 'status-badge running';
+      text.textContent = 'Recording';
+      btn.className = 'toggle-btn stop';
+      btn.textContent = 'Stop';
+      btn.disabled = false;
+
+      if (data.health) {
+        const h = data.health;
+        const ap = h.audio_pipeline || {};
+        const pp = h.pipeline || {};
+        document.getElementById('statFrames').textContent = pp.frames_captured ?? '-';
+        document.getElementById('statRms').textContent = (ap.audio_level_rms ?? 0).toFixed(4);
+        document.getElementById('statTrans').textContent = ap.transcriptions_completed ?? '-';
+        document.getElementById('statFps').textContent = (pp.capture_fps_actual ?? 0).toFixed(1);
+        document.getElementById('statMon').textContent = (h.monitors || []).length;
+        const up = Math.floor(ap.uptime_secs ?? 0);
+        const m = Math.floor(up / 60);
+        const s = up % 60;
+        document.getElementById('statUptime').textContent = `${m}m ${s}s`;
+
+        // Meeting banner
+        const banner = document.getElementById('meetingBanner');
+        const meetingText = document.getElementById('meetingText');
+        if (ap.meeting_detected) {
+          banner.classList.remove('hidden');
+          meetingText.textContent = 'Meeting in progress - audio is being transcribed';
+        } else {
+          banner.classList.add('hidden');
+        }
+      }
+    } else {
+      badge.className = 'status-badge stopped';
+      text.textContent = 'Stopped';
+      btn.className = 'toggle-btn start';
+      btn.textContent = 'Start';
+      btn.disabled = false;
+      ['statFrames','statRms','statTrans','statFps','statMon','statUptime'].forEach(id => {
+        document.getElementById(id).textContent = '-';
+      });
+      document.getElementById('meetingBanner').classList.add('hidden');
+    }
+  } catch (e) {
+    console.error('status error', e);
+  }
+}
+
+// --- Toggle ---
+document.getElementById('toggleBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('toggleBtn');
+  btn.disabled = true;
+  const data = await api('/api/status');
+  if (data.running) {
+    await api('/api/stop');
+  } else {
+    await api('/api/start');
+  }
+  setTimeout(refreshStatus, 1500);
+});
+
+// --- Search ---
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  const results = document.getElementById('results');
+  results.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const params = { limit: 30, order: 'desc' };
+  if (q) params.q = q;
+  if (currentTab === 'vision') params.content_type = 'ocr';
+  if (currentTab === 'audio') params.content_type = 'audio';
+
+  try {
+    const data = await proxyApi('/search', params);
+    const items = data.data || [];
+    if (items.length === 0) {
+      results.innerHTML = '<div class="empty">No results found.</div>';
+      return;
+    }
+    results.innerHTML = '';
+    items.forEach(item => {
+      const c = item.content || {};
+      const type = item.type || 'unknown';
+      const ts = c.timestamp ? new Date(c.timestamp).toLocaleString() : '';
+      const app = c.app_name || '';
+      const mon = c.device_name || '';
+      const text = c.text || '';
+      const framePath = c.file_path || '';
+
+      const div = document.createElement('div');
+      div.className = 'result-item';
+
+      let thumbHtml = '';
+      if (type === 'OCR' && framePath) {
+        thumbHtml = `<img class="result-thumb" src="/api/frame/0?path=${encodeURIComponent(framePath)}" alt="frame" />`;
+      } else if (type === 'audio') {
+        thumbHtml = `<div class="result-thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px;">🎙️</div>`;
+      }
+
+      div.innerHTML = `
+        ${thumbHtml}
+        <div class="result-body">
+          <div class="result-meta">
+            <span class="result-type ${type}">${type}</span>
+            <span>${ts}</span>
+            ${app ? `<span>app: ${app}</span>` : ''}
+            ${mon ? `<span>${mon}</span>` : ''}
+          </div>
+          <div class="result-text" onclick="this.classList.toggle('expanded')">${escapeHtml(text)}</div>
+        </div>
+      `;
+      results.appendChild(div);
+    });
+  } catch (e) {
+    results.innerHTML = `<div class="empty">Error: ${escapeHtml(String(e))}</div>`;
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function setTab(type) {
+  currentTab = type;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.type === type);
+  });
+  doSearch();
+}
+
+document.getElementById('searchBtn').addEventListener('click', doSearch);
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+// --- Initial load ---
+refreshStatus();
+doSearch();
+pollTimer = setInterval(refreshStatus, 5000);
+</script>
+</body>
+</html>
