@@ -224,6 +224,12 @@ class ScreenpipeManagerApp(rumps.App):
 
 
 if __name__ == "__main__":
+    # Auto-start screenpipe before launching the app
+    if not screenpipe_running():
+        print("[Screenpipe] Auto-starting screenpipe...")
+        start_screenpipe()
+        time.sleep(2)  # Give it time to start
+    
     # Start web server in background thread
     web_thread = threading.Thread(target=start_web_server, daemon=True)
     web_thread.start()

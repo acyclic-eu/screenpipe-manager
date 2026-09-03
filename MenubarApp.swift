@@ -39,6 +39,10 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
 
         // Start status timer
         timer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(refreshStatus), userInfo: nil, repeats: true)
+        
+        // Auto-start screenpipe on launch
+        startRecording()
+        
         refreshStatus()
     }
 
@@ -74,6 +78,11 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
     }
 
     @objc func startRecording() {
+        // Check if already running to avoid duplicates
+        if checkScreenpipeRunning() {
+            print("[Screenpipe] Already running")
+            return
+        }
         let task = Process()
         task.launchPath = "/bin/bash"
         task.arguments = ["-c", "nohup \(screenpipeBin) record --port \(screenpipePort) --language english > /tmp/screenpipe.log 2>&1 &"]

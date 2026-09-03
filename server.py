@@ -207,6 +207,12 @@ def main():
     key = get_api_key()
     if not key:
         print("WARNING: Could not find screenpipe API key", file=sys.stderr)
+    
+    # Auto-start screenpipe if not already running
+    if not screenpipe_running():
+        print("[Screenpipe] Auto-starting screenpipe...")
+        start_screenpipe()
+    
     print(f"Screenpipe Manager running at http://localhost:{PORT}")
     print(f"API key: {'found' if key else 'MISSING'}")
     with socketserver.TCPServer(("127.0.0.1", PORT), Handler) as httpd:
