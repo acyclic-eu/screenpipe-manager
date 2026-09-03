@@ -7,8 +7,7 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
     var isRunning = false
     var meetingDetected = false
 
-    let screenpipeBin = "/Users/acyclic/github/acyclic-eu/screenpipe/target/release/screenpipe"
-    let screenpipePort = "3030"
+    let managerPort = "7654"
     let dashboardURL = "http://localhost:7654"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -39,9 +38,6 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
 
         // Start status timer
         timer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(refreshStatus), userInfo: nil, repeats: true)
-        
-        // Auto-start screenpipe on launch
-        startRecording()
         
         refreshStatus()
     }
@@ -78,25 +74,16 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
     }
 
     @objc func startRecording() {
-        // Check if already running to avoid duplicates
-        if checkScreenpipeRunning() {
-            print("[Screenpipe] Already running")
-            return
-        }
-        let task = Process()
-        task.launchPath = "/bin/bash"
-        task.arguments = ["-c", "nohup \(screenpipeBin) record --port \(screenpipePort) --language english > /tmp/screenpipe.log 2>&1 &"]
-        task.launch()
-        print("[Screenpipe] Recording started")
+        // Delegate to Python server via HTTP
+        sendAPIRequest(path: "/api/start")
+        print("[Screenpipe] Start requested")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.refreshStatus() }
     }
 
     @objc func stopRecording() {
-        let task = Process()
-        task.launchPath = "/bin/bash"
-        task.arguments = ["-c", "pkill -f 'screenpipe record'"]
-        task.launch()
-        print("[Screenpipe] Recording stopped")
+        // Delegate to Python server via HTTP
+        sendAPIRequest(path: "/api/stop")
+        print("[Screenpipe] Stop requested")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.refreshStatus() }
     }
 
@@ -110,43 +97,47 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
     }
 
     @objc func refreshStatus() {
-        let running = checkScreenpipeRunning()
-        isRunning = running
+        // Get status from Python server, not directly from screenpipe
+        if let status = fetchManagerStatus() {
+            isRunning = status["running"] as? Bool ?? false
+            meetingDetected = status["meeting"] as? Bool ?? false
 
-        if let menu = statusItem.menu {
-            if let statusItem2 = menu.item(withTag: 100) {
-                if running {
-                    let health = checkHealth()
-                    let meeting = health?["meeting"] as? Bool ?? false
-                    meetingDetected = meeting
-                    if meeting {
-                        statusItem2.title = "Status: Recording (Meeting active)"
+            if let menu = statusItem.menu {
+                if let statusItem2 = menu.item(withTag: 100) {
+                    if isRunning {
+                        if meetingDetected {
+                            statusItem2.title = "Status: Recording (Meeting active)"
+                        } else {
+                            statusItem2.title = "Status: Recording"
+                        }
                     } else {
-                        statusItem2.title = "Status: Recording"
+                        statusItem2.title = "Status: Stopped"
                     }
-                } else {
-                    statusItem2.title = "Status: Stopped"
                 }
-            }
 
-            menu.item(at: 0)?.isEnabled = !running
-            menu.item(at: 1)?.isEnabled = running
+                menu.item(at: 0)?.isEnabled = !isRunning
+                menu.item(at: 1)?.isEnabled = isRunning
+            }
         }
     }
 
-    func checkScreenpipeRunning() -> Bool {
-        let task = Process()
-        task.launchPath = "/usr/bin/pgrep"
-        task.arguments = ["-f", "screenpipe record"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.launch()
-        task.waitUntilExit()
-        return task.terminationStatus == 0
+    func sendAPIRequest(path: String) {
+        guard let url = URL(string: "http://localhost:\(managerPort)\(path)") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        let task = URLSession.shared.dataTask(with: request) { _, _, _ in }
+        task.resume()
+    }
+
+    func fetchManagerStatus() -> [String: Any]? {
+        guard let url = URL(string: "http://localhost:\(managerPort)/api/status") else { return nil }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
     func checkHealth() -> [String: Any]? {
-        guard let url = URL(string: "http://localhost:\(screenpipePort)/health") else { return nil }
+        guard let url = URL(string: "http://localhost:3030/health") else { return nil }
         guard let data = try? Data(contentsOf: url) else { return nil }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         if let audio = json["audio_pipeline"] as? [String: Any] {

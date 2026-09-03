@@ -20,7 +20,29 @@ from pathlib import Path
 # --- Config ---
 PORT = 7654
 SCREENPIPE_PORT = 3030
-SCREENPIPE_BIN = "/Users/acyclic/github/acyclic-eu/screenpipe/target/release/screenpipe"
+
+# Find screenpipe binary: env var > local build > PATH > default
+import shutil
+
+def find_screenpipe_bin() -> str:
+    # 1. Explicit env var
+    if bin_path := os.getenv("SCREENPIPE_BIN"):
+        return bin_path
+    
+    # 2. Local build directory (dev mode)
+    local_build = os.path.expanduser("~/github/acyclic-eu/screenpipe/target/release/screenpipe")
+    if os.path.exists(local_build):
+        return local_build
+    
+    # 3. PATH lookup
+    if which_path := shutil.which("screenpipe"):
+        return which_path
+    
+    # 4. Default fallback
+    return "/usr/local/bin/screenpipe"
+
+SCREENPIPE_BIN = find_screenpipe_bin()
+
 SCREENPIPE_LOG = "/tmp/screenpipe.log"
 API_KEY = None  # fetched at startup
 HERE = Path(__file__).parent
