@@ -13,9 +13,9 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
-        // Create eye icon as NSImage (template)
-        let eyeImage = createEyeImage()
-        statusItem.button?.image = eyeImage
+        // Create eye icons as NSImage (template)
+        let closedEyeImage = createClosedEyeImage()
+        statusItem.button?.image = closedEyeImage  // Start with closed eye (not recording)
         statusItem.button?.image?.isTemplate = true
         statusItem.button?.title = ""
 
@@ -65,6 +65,22 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
         return image
     }
 
+    func createClosedEyeImage() -> NSImage {
+        let size = NSSize(width: 20, height: 16)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        
+        // Closed eye: a simple horizontal line
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: 2, y: 8))
+        path.line(to: NSPoint(x: 18, y: 8))
+        path.lineWidth = 2.0
+        path.stroke()
+        
+        image.unlockFocus()
+        return image
+    }
+
     func startWebServer() {
         let task = Process()
         task.launchPath = "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
@@ -101,6 +117,13 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
         if let status = fetchManagerStatus() {
             isRunning = status["running"] as? Bool ?? false
             meetingDetected = status["meeting"] as? Bool ?? false
+
+            // Update icon: open eye when recording, closed eye when stopped
+            if isRunning {
+                statusItem.button?.image = createEyeImage()
+            } else {
+                statusItem.button?.image = createClosedEyeImage()
+            }
 
             if let menu = statusItem.menu {
                 if let statusItem2 = menu.item(withTag: 100) {
