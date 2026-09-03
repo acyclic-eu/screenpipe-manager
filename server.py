@@ -211,6 +211,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             data = filepath.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", content_type)
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(data)
         else:

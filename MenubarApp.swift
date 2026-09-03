@@ -81,6 +81,31 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
         return image
     }
 
+    func createDeadEyeImage() -> NSImage {
+        let size = NSSize(width: 20, height: 16)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        
+        // Closed eye with X (dead eye)
+        let eyePath = NSBezierPath()
+        eyePath.move(to: NSPoint(x: 2, y: 8))
+        eyePath.line(to: NSPoint(x: 18, y: 8))
+        eyePath.lineWidth = 2.0
+        eyePath.stroke()
+        
+        // X mark
+        let xPath = NSBezierPath()
+        xPath.move(to: NSPoint(x: 5, y: 5))
+        xPath.line(to: NSPoint(x: 15, y: 11))
+        xPath.move(to: NSPoint(x: 15, y: 5))
+        xPath.line(to: NSPoint(x: 5, y: 11))
+        xPath.lineWidth = 2.0
+        xPath.stroke()
+        
+        image.unlockFocus()
+        return image
+    }
+
     func startWebServer() {
         let task = Process()
         task.launchPath = "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
@@ -117,9 +142,12 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
         if let status = fetchManagerStatus() {
             isRunning = status["running"] as? Bool ?? false
             meetingDetected = status["meeting"] as? Bool ?? false
+            let backendReachable = status["health"] != nil
 
-            // Update icon: open eye when recording, closed eye when stopped
-            if isRunning {
+            // Update icon: open eye when recording, closed eye when stopped, dead eye when backend down
+            if !backendReachable {
+                statusItem.button?.image = createDeadEyeImage()
+            } else if isRunning {
                 statusItem.button?.image = createEyeImage()
             } else {
                 statusItem.button?.image = createClosedEyeImage()
@@ -127,7 +155,9 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
 
             if let menu = statusItem.menu {
                 if let statusItem2 = menu.item(withTag: 100) {
-                    if isRunning {
+                    if !backendReachable {
+                        statusItem2.title = "Status: Backend unavailable"
+                    } else if isRunning {
                         if meetingDetected {
                             statusItem2.title = "Status: Recording (Meeting active)"
                         } else {
@@ -140,6 +170,16 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
 
                 menu.item(at: 0)?.isEnabled = !isRunning
                 menu.item(at: 1)?.isEnabled = isRunning
+            }
+        } else {
+            // Failed to fetch status - backend is down
+            statusItem.button?.image = createDeadEyeImage()
+            if let menu = statusItem.menu {
+                if let statusItem2 = menu.item(withTag: 100) {
+                    statusItem2.title = "Status: Backend unavailable"
+                }
+                menu.item(at: 0)?.isEnabled = false
+                menu.item(at: 1)?.isEnabled = false
             }
         }
     }
