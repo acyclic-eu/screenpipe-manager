@@ -7,7 +7,7 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
     var isRunning = false
     var meetingDetected = false
 
-    let screenpipeBin = "/Users/acyclic/build/screenpipe/target/release/screenpipe"
+    let screenpipeBin = "/Users/acyclic/github/acyclic-eu/screenpipe/target/release/screenpipe"
     let screenpipePort = "3030"
     let dashboardURL = "http://localhost:7654"
 
@@ -72,7 +72,7 @@ class ScreenpipeManager: NSObject, NSApplicationDelegate {
     func startWebServer() {
         let task = Process()
         task.launchPath = "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
-        let serverPath = "/Users/acyclic/build/screenpipe-manager/server.py"
+        let serverPath = "/Users/acyclic/github/acyclic-eu/screenpipe-manager/server.py"
         task.arguments = [serverPath]
         task.launch()
     }

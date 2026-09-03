@@ -20,7 +20,7 @@ from pathlib import Path
 # --- Config ---
 PORT = 7654
 SCREENPIPE_PORT = 3030
-SCREENPIPE_BIN = "/Users/acyclic/build/screenpipe/target/release/screenpipe"
+SCREENPIPE_BIN = "/Users/acyclic/github/acyclic-eu/screenpipe/target/release/screenpipe"
 SCREENPIPE_LOG = "/tmp/screenpipe.log"
 API_KEY = None  # fetched at startup
 HERE = Path(__file__).parent

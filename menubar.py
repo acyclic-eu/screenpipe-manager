@@ -17,7 +17,7 @@ from pathlib import Path
 
 import rumps
 
-SCREENPIPE_BIN = "/Users/acyclic/build/screenpipe/target/release/screenpipe"
+SCREENPIPE_BIN = "/Users/acyclic/github/acyclic-eu/screenpipe/target/release/screenpipe"
 SCREENPIPE_PORT = 3030
 SERVER_PORT = 7654
 SCREENPIPE_LOG = "/tmp/screenpipe.log"
